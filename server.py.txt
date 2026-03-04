@@ -1,0 +1,81 @@
+import os
+import requests
+from flask import Flask, request, jsonify
+from datetime import datetime, timedelta
+from dotenv import load_dotenv
+
+load_dotenv()
+
+app = Flask(__name__)
+
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+# 구매자별 사용 기록 (실전은 DB 사용 권장)
+users = {}
+
+FREE_LIMIT = 15
+FREE_DAYS = 7
+
+def check_limit(user_id):
+    now = datetime.now()
+
+    if user_id not in users:
+        users[user_id] = {
+            "count": 0,
+            "start_date": now
+        }
+
+    user = users[user_id]
+
+    # 7일 초과 여부
+    if now > user["start_date"] + timedelta(days=FREE_DAYS):
+        return False, "⛔ 체험 기간(7일)이 종료되었습니다.\n\n👉 지금 바로 프리미엄으로 업그레이드하세요."
+
+    # 15회 초과 여부
+    if user["count"] >= FREE_LIMIT:
+        return False, "⛔ 무료 생성 15회를 모두 사용하셨습니다.\n\n🚀 더 강력한 기능을 원하시면 업그레이드하세요."
+
+    user["count"] += 1
+    return True, None
+
+
+@app.route("/generate-novel", methods=["POST"])
+def generate_novel():
+    data = request.json
+    topic = data.get("topic")
+    user_id = data.get("user_id")
+
+    allowed, message = check_limit(user_id)
+    if not allowed:
+        return jsonify({"error": message})
+
+    prompt = f"""
+    당신은 노벨문학상 수준의 모든 분야에 통달한 천재 현대 소설가로서 대문호입니다.
+    다음 주제로 감동적이고 문학적이며 몰입도 높은 소설을 작성하세요.
+
+    주제: {topic}
+
+    구성:
+    - 강렬한 도입부로 독자의 상상력을 자극하는 문학적인 문체를 사용할 것.
+    - 사건 중심이 아닌, 인물의 내면과 분위기 묘사에 집중하면서 감정선이 살아있는 전개
+    - 한국어의 아름다움을 살린 고급 어휘를 선택할 것 깊은 여운의 결말
+    """
+
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key={GEMINI_API_KEY}"
+
+    payload = {
+        "contents": [{
+            "parts": [{"text": prompt}]
+        }]
+    }
+
+    response = requests.post(url, json=payload)
+    result = response.json()
+
+    text = result["candidates"][0]["content"]["parts"][0]["text"]
+
+    return jsonify({"result": text})
+
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=10000)
