@@ -61,7 +61,7 @@ def generate_novel():
     - 한국어의 아름다움을 살린 고급 어휘를 선택할 것 깊은 여운의 결말
     """
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key={GEMINI_API_KEY}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
 
     payload = {
         "contents": [{
@@ -79,3 +79,4 @@ def generate_novel():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
+
